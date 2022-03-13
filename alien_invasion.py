@@ -4,7 +4,6 @@ from settings import Settings
 from ship import Ship
 
 
-
 class AlienInvasion:
     """Класс для управления ресурсами и поведением игры."""
 
