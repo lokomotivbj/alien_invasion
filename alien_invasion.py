@@ -1,8 +1,11 @@
 import sys
+from random import randrange
 import pygame
 from settings import Settings
 from ship import Ship
 from bullet import Bullet
+from alien import Alien
+from star import Star
 
 
 class AlienInvasion:
@@ -27,7 +30,11 @@ class AlienInvasion:
 
         self.ship = Ship(self)
         self.bullets = pygame.sprite.Group()
+        self.aliens = pygame.sprite.Group()
+        self.stars = pygame.sprite.Group()
 
+        self._create_stars()
+        self._create_fleet()
 
     def run_game(self):
         """Запуск основного цикла игры."""
@@ -85,12 +92,55 @@ class AlienInvasion:
             if bullet.rect.bottom < 0:
                 self.bullets.remove(bullet)
 
+    def _create_alien(self, alien_number, row_number):
+         # Создание пришельца и размещение его в ряду
+        alien = Alien(self)
+        alien_width, alien_height = alien.rect.size
+        alien.x = alien_width + alien_width * 2 * alien_number
+        alien.y = alien_height + alien_height * 2 * row_number
+        alien.rect.x = alien.x
+        alien.rect.y = alien.y
+        self.aliens.add(alien)
+
+    def _create_fleet(self):
+        """Создание флота вторжения"""
+
+        # Расчет количества пришельцев в ряду
+        alien = Alien(self)
+        alien_width, alien_height = alien.rect.size
+        available_space_x = self.settings.screen_width - (alien_width * 2)
+        available_space_y = self.settings.screen_heigth - (alien_height * 3) - self.ship.rect.height
+        number_rows = available_space_y // (alien_height * 2)
+        number_aliens_x = available_space_x // (2 * alien_width)
+
+        # Создание флота пришельцев
+        for row_number in range(number_rows):
+            for alien_number in range(number_aliens_x):
+                self._create_alien(alien_number, row_number)
+
+
+        self.aliens.add(alien)
+    
+    def _create_stars(self):
+        avrg_dist = 50 
+        number_rows = (self.settings.screen_heigth - avrg_dist * 2) // avrg_dist
+        number_in_row = (self.settings.screen_width - avrg_dist * 2) // avrg_dist
+
+        for row_number in range(number_rows):
+            for num_in_cur_row in range(number_in_row):
+                star = Star()
+                star.rect.x = randrange(0, avrg_dist) + num_in_cur_row * (avrg_dist + star.rect.width)
+                star.rect.y = randrange(0, avrg_dist) + row_number * (avrg_dist + star.rect.height)
+                self.stars.add(star)
+
     def _update_screen(self):
         """Обновляет изображения на экране и отображает новый экран"""
         self.screen.fill(self.settings.bg_color)
+        self.stars.draw(self.screen)
         self.ship.blitme()
         for bullet in self.bullets.sprites():
             bullet.draw_bullet()
+        self.aliens.draw(self.screen)
         pygame.display.flip()
 
 
