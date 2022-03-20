@@ -1,5 +1,6 @@
 import sys
 from random import randrange
+from random import choice
 import pygame
 from settings import Settings
 from ship import Ship
@@ -136,6 +137,7 @@ class AlienInvasion:
     def _update_screen(self):
         """Обновляет изображения на экране и отображает новый экран"""
         self.screen.fill(self.settings.bg_color)
+        self.stars.update()
         self.stars.draw(self.screen)
         self.ship.blitme()
         for bullet in self.bullets.sprites():
