@@ -5,13 +5,22 @@ class Settings:
         """Инициализирует настройки игры"""
         # Параметры экрана
         self.screen_width = 1200
-        self.screen_heigth = 600
-        self.fps = 120
+        self.screen_height = 600
+
         self.bg_color = (56, 27, 91)
+
+        self.fps = 120
+        self.fullscreen_mode = True
+        # Настройки игры
         self.ship_speed = 6
-        self.fullscreen_mode = False
+
         self.bullet_speed = 4
         self.bullets_allowed = 3
         self.bullet_width = 3
         self.bullet_height = 15
-        self.bullet_color = (224,56,31)
+        self.bullet_color = (224, 56, 31)
+
+        self.alien_speed = 1.0
+        self.fleet_drop_speed = 10
+        # fleet_direction = 1 обозначает движение вправо, а -1 влево
+        self.fleet_direction = 1
