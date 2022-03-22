@@ -13,14 +13,15 @@ class Settings:
         self.fullscreen_mode = True
         # Настройки игры
         self.ship_speed = 6
+        self.ship_limit = 3
 
-        self.bullet_speed = 4
-        self.bullets_allowed = 3
-        self.bullet_width = 3
+        self.bullet_speed = 10
+        self.bullets_allowed = 30
+        self.bullet_width = 300
         self.bullet_height = 15
         self.bullet_color = (224, 56, 31)
 
-        self.alien_speed = 1.0
+        self.alien_speed = 10.0
         self.fleet_drop_speed = 10
         # fleet_direction = 1 обозначает движение вправо, а -1 влево
         self.fleet_direction = 1
