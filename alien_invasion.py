@@ -9,6 +9,8 @@ from alien import Alien
 from star import Star
 from game_stats import GameStats
 from button import Button
+from scoreboard import Scoreboard
+from sounds import Sound
 
 
 class AlienInvasion:
@@ -32,6 +34,7 @@ class AlienInvasion:
         self.clock = pygame.time.Clock()
         # Создание экземпляра для хранения игровой статистики.
         self.stats = GameStats(self)
+        self.sb = Scoreboard(self)
 
         self.ship = Ship(self)
         self.bullets = pygame.sprite.Group()
@@ -59,9 +62,27 @@ class AlienInvasion:
         self.normal_button.msg_image_rect.centery = 200
         self.hard_button.msg_image_rect.centery = 200
 
+
+        self.start_screen_music = True
+        self.start_music_active = False
+        self.game_screen_music = False
+        self.game_music_active = False
+
+        self.sound = Sound()
+
     def run_game(self):
         """Запуск основного цикла игры."""
         while True:
+            if self.start_screen_music and not self.start_music_active:
+                pygame.mixer.music.load('start_screen.wav')
+                pygame.mixer.music.play(loops=-1, fade_ms=1000)
+                self.start_music_active = True
+
+            if self.game_screen_music and not self.game_music_active:
+                pygame.mixer.music.load('game_screen.flac')
+                pygame.mixer.music.play(loops=-1, fade_ms=1000)
+                self.game_music_active = True
+
             self._check_events()
             if self.stats.game_active and self.settings.difficulty_level:
                 self.ship.update()
@@ -76,6 +97,7 @@ class AlienInvasion:
         """Обрабатывает нажатия клавиш и события мыши"""
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
+                self.stats.save_high_score()
                 sys.exit()
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 mouse_pos = pygame.mouse.get_pos()
@@ -97,6 +119,7 @@ class AlienInvasion:
         elif event.key == pygame.K_LEFT:
             self.ship.moving_left = True
         elif event.key == pygame.K_q:
+            self.stats.save_high_score()
             sys.exit()
         elif event.key == pygame.K_SPACE:
             self._fire_bullet()
@@ -111,6 +134,7 @@ class AlienInvasion:
     def _fire_bullet(self):
         """Создание нового снаряда и включение его в группу bullets"""
         if len(self.bullets) < self.settings.bullets_allowed:
+            self.sound.laser()
             new_bullet = Bullet(self)
             self.bullets.add(new_bullet)
 
@@ -131,12 +155,22 @@ class AlienInvasion:
         # Удаление снарядов и пришельцев, участвующих в коллизиях
         collisions = pygame.sprite.groupcollide(self.bullets, self.aliens, \
                                                 self.settings.weak_bullet, True)
+        if collisions:
+            self.sound.explosion()
+            for aliens in collisions.values():
+                self.stats.score += self.settings.alien_points * len(aliens)
+            self.sb.prep_score()
+            self.sb.check_high_score()
 
         if not self.aliens:
             #  Уничтожение существующих снарядов и создание нового флота
             self.bullets.empty()
             self._create_fleet()
             self.settings.increase_speed()
+
+            # Увеличение уровня
+            self.stats.level += 1
+            self.sb.prep_level()
 
     def _update_aliens(self):
         """Обновляет позиции всех пришельцев во флоте"""
@@ -154,6 +188,7 @@ class AlienInvasion:
         if self.stats.ships_left > 0:
             # Уменьшение ships_left
             self.stats.ships_left -= 1
+            self.sb.prep_ships()
 
             # Очистка списков пришельцев и снарядов
             self.aliens.empty()
@@ -170,6 +205,11 @@ class AlienInvasion:
             self.stats.game_active = False
             self.settings.difficulty_level = None
             pygame.mouse.set_visible(True)
+            self.game_screen_music = False
+            self.start_screen_music = True
+            self.start_music_active = False
+            self.game_music_active = False
+
 
     def _check_aliens_bottom(self):
         """Проверяет, добрались ли пришельцы до нижнего края экрана"""
@@ -244,6 +284,7 @@ class AlienInvasion:
             for bullet in self.bullets.sprites():
                 bullet.draw_bullet()
             self.aliens.draw(self.screen)
+            self.sb.show_score()
         # Кнопка Play отображается в том случае, если игра неактивна
         if not self.stats.game_active:
             self.play_button.draw_button()
@@ -263,6 +304,9 @@ class AlienInvasion:
         self.settings.initialize_dynamic_settings()
         self.stats.reset_stats()
         self.stats.game_active = True
+        self.sb.prep_score()
+        self.sb.prep_level()
+        self.sb.prep_ships()
 
         self.aliens.empty()
         self.bullets.empty()
@@ -285,21 +329,36 @@ class AlienInvasion:
 
 
     def _check_easy_button(self, mouse_pos):
-        if self.easy_button.rect.collidepoint(mouse_pos):
-            self.settings.difficulty_level = 0.7
-            self.settings.alien_speed_factor *= self.settings.difficulty_level
+        if self.stats.game_active:
+            if self.easy_button.rect.collidepoint(mouse_pos):
+                self.settings.difficulty_level = 0.7
+                self.settings.alien_speed_factor *= self.settings.difficulty_level
+                pygame.mouse.set_visible(False)
+                self.game_screen_music = True
+                self.start_screen_music = False
+                self.start_music_active = False
 
 
     def _check_normal_button(self, mouse_pos):
-        if self.normal_button.rect.collidepoint(mouse_pos):
-            self.settings.difficulty_level = 1.0
-            self.settings.alien_speed_factor *= self.settings.difficulty_level
+        if self.stats.game_active:
+            if self.normal_button.rect.collidepoint(mouse_pos):
+                self.settings.difficulty_level = 1.0
+                self.settings.alien_speed_factor *= self.settings.difficulty_level
+                pygame.mouse.set_visible(False)
+                self.game_screen_music = True
+                self.start_screen_music = False
+                self.start_music_active = False
 
 
     def _check_hard_button(self, mouse_pos):
-        if self.hard_button.rect.collidepoint(mouse_pos):
-            self.settings.difficulty_level = 1.7
-            self.settings.alien_speed_factor *= self.settings.difficulty_level
+        if self.stats.game_active:
+            if self.hard_button.rect.collidepoint(mouse_pos):
+                self.settings.difficulty_level = 1.7
+                self.settings.alien_speed_factor *= self.settings.difficulty_level
+                pygame.mouse.set_visible(False)
+                self.game_screen_music = True
+                self.start_screen_music = False
+                self.start_music_active = False
 
 
 if __name__ == '__main__':
