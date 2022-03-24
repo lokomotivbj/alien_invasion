@@ -8,6 +8,7 @@ from bullet import Bullet
 from alien import Alien
 from star import Star
 from game_stats import GameStats
+from button import Button
 
 
 class AlienInvasion:
@@ -40,11 +41,29 @@ class AlienInvasion:
         self._create_stars()
         self._create_fleet()
 
+        # Создание кнопки Play
+        self.play_button = Button(self, 'Play')
+        self.easy_button = Button(self, 'Цыпленок')
+        self.normal_button = Button(self, 'Петух')
+        self.hard_button = Button(self, 'Петушара!!!')
+        self.easy_button.rect.centerx = self.screen.get_rect().centerx - 300
+        self.easy_button.msg_image_rect.centerx = self.easy_button.rect.centerx
+        self.normal_button.rect.centerx = self.screen.get_rect().centerx
+        self.normal_button.msg_image_rect.centerx = self.normal_button.rect.centerx
+        self.hard_button.rect.centerx = self.screen.get_rect().centerx + 300
+        self.hard_button.msg_image_rect.centerx = self.hard_button.rect.centerx
+        self.easy_button.rect.centery = 200
+        self.normal_button.rect.centery = 200
+        self.hard_button.rect.centery = 200
+        self.easy_button.msg_image_rect.centery = 200
+        self.normal_button.msg_image_rect.centery = 200
+        self.hard_button.msg_image_rect.centery = 200
+
     def run_game(self):
         """Запуск основного цикла игры."""
         while True:
             self._check_events()
-            if self.stats.game_active:
+            if self.stats.game_active and self.settings.difficulty_level:
                 self.ship.update()
                 self._update_bullets()
                 self._update_aliens()
@@ -53,12 +72,18 @@ class AlienInvasion:
 
             self.clock.tick(self.settings.fps)
 
-
     def _check_events(self):
         """Обрабатывает нажатия клавиш и события мыши"""
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 sys.exit()
+            elif event.type == pygame.MOUSEBUTTONDOWN:
+                mouse_pos = pygame.mouse.get_pos()
+                self._check_play_button(mouse_pos)
+                self._check_easy_button(mouse_pos)
+                self._check_normal_button(mouse_pos)
+                self._check_hard_button(mouse_pos)
+
             elif event.type == pygame.KEYDOWN:
                 self._check_keydown_events(event)
 
@@ -104,13 +129,14 @@ class AlienInvasion:
     def _check_bullet_alien_collisions(self):
         """Обработка коллизий снарядов с пришельцами"""
         # Удаление снарядов и пришельцев, участвующих в коллизиях
-        collisions = pygame.sprite.groupcollide(self.bullets, self.aliens, False, True)
+        collisions = pygame.sprite.groupcollide(self.bullets, self.aliens, \
+                                                self.settings.weak_bullet, True)
 
         if not self.aliens:
             #  Уничтожение существующих снарядов и создание нового флота
             self.bullets.empty()
-            self.settings.alien_speed += 0.5
             self._create_fleet()
+            self.settings.increase_speed()
 
     def _update_aliens(self):
         """Обновляет позиции всех пришельцев во флоте"""
@@ -142,6 +168,8 @@ class AlienInvasion:
 
         else:
             self.stats.game_active = False
+            self.settings.difficulty_level = None
+            pygame.mouse.set_visible(True)
 
     def _check_aliens_bottom(self):
         """Проверяет, добрались ли пришельцы до нижнего края экрана"""
@@ -153,7 +181,8 @@ class AlienInvasion:
                 break
 
     def _create_alien(self, alien_number, row_number):
-         # Создание пришельца и размещение его в ряду
+
+        # Создание пришельца и размещение его в ряду
         alien = Alien(self)
         alien_width, alien_height = alien.rect.size
         alien.x = alien_width + alien_width * 2 * alien_number
@@ -191,11 +220,10 @@ class AlienInvasion:
             for alien_number in range(number_aliens_x):
                 self._create_alien(alien_number, row_number)
 
-
         self.aliens.add(alien)
-    
+
     def _create_stars(self):
-        avrg_dist = 50 
+        avrg_dist = 50
         number_rows = (self.settings.screen_height - avrg_dist * 2) // avrg_dist
         number_in_row = (self.settings.screen_width - avrg_dist * 2) // avrg_dist
 
@@ -212,10 +240,66 @@ class AlienInvasion:
         self.stars.update()
         self.stars.draw(self.screen)
         self.ship.blitme()
-        for bullet in self.bullets.sprites():
-            bullet.draw_bullet()
-        self.aliens.draw(self.screen)
+        if self.stats.game_active and self.settings.difficulty_level:
+            for bullet in self.bullets.sprites():
+                bullet.draw_bullet()
+            self.aliens.draw(self.screen)
+        # Кнопка Play отображается в том случае, если игра неактивна
+        if not self.stats.game_active:
+            self.play_button.draw_button()
+        # Кнопки сложности отображаются если сложность не выбрана
+        if not self.settings.difficulty_level and self.stats.game_active:
+            self.difficulty_level_choice()
+
         pygame.display.flip()
+
+    def _check_play_button(self, mouse_pos):
+        """Запускает новую игру при нажатии кнопки Play"""
+        button_clicked = self.play_button.rect.collidepoint(mouse_pos)
+        if button_clicked and not self.stats.game_active:
+            self.start_new_game()
+
+    def start_new_game(self):
+        self.settings.initialize_dynamic_settings()
+        self.stats.reset_stats()
+        self.stats.game_active = True
+
+        self.aliens.empty()
+        self.bullets.empty()
+
+        self._create_fleet()
+        self.ship.center_ship()
+
+
+
+    def difficulty_level_choice(self):
+        """Отображение кнопок выбора сложности и изменение стартовых настроек"""
+
+        # Создать три кнопки для выбора уровней сложности
+
+        self.easy_button.draw_button()
+        self.normal_button.draw_button()
+        self.hard_button.draw_button()
+
+
+
+
+    def _check_easy_button(self, mouse_pos):
+        if self.easy_button.rect.collidepoint(mouse_pos):
+            self.settings.difficulty_level = 0.7
+            self.settings.alien_speed_factor *= self.settings.difficulty_level
+
+
+    def _check_normal_button(self, mouse_pos):
+        if self.normal_button.rect.collidepoint(mouse_pos):
+            self.settings.difficulty_level = 1.0
+            self.settings.alien_speed_factor *= self.settings.difficulty_level
+
+
+    def _check_hard_button(self, mouse_pos):
+        if self.hard_button.rect.collidepoint(mouse_pos):
+            self.settings.difficulty_level = 1.7
+            self.settings.alien_speed_factor *= self.settings.difficulty_level
 
 
 if __name__ == '__main__':
